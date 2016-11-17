@@ -9,6 +9,7 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Point;
 import android.graphics.Rect;
+import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.util.AttributeSet;
 import android.util.Log;
@@ -139,26 +140,17 @@ public class ImpressionistView extends View {
         //at that location
         float touchX = motionEvent.getX();
         float touchY = motionEvent.getY();
+        Bitmap b = ((BitmapDrawable)_imageView.getDrawable()).getBitmap();
+        int pixel = b.getPixel((int)touchX,(int)touchY);
 
         switch(motionEvent.getAction()) {
             case MotionEvent.ACTION_DOWN:
-                // get the relative top left coords of the image view
-                ImageView leftSide = (ImageView)findViewById(R.id.viewImage);
-                Rect r = getBitmapPositionInsideImageView(leftSide);
-                ImpressionistView rightSide = (ImpressionistView)findViewById(R.id.viewImpressionist);
-                Rect rightSideBounds = leftSide.getDrawable().getBounds();
-                int rightSideX = (rightSide.getWidth() - rightSideBounds.right) / 2;
-                int rightSideY = (rightSide.getHeight() - rightSideBounds.bottom) / 2;
-                // get true x, y coords of touch
-                int xDiff = rightSideX - (int)touchX;
-                int yDiff = rightSideY - (int)touchY;
-                int color = _offScreenBitmap.getPixel(leftSideX + xDiff, rightSideY + yDiff);
-
-                //int color = _offScreenBitmap.getPixel(x, y);
-                _paint.setColor(color);
+                _paint.setColor(pixel);
                 _path.moveTo(touchX, touchY);
                 break;
             case MotionEvent.ACTION_MOVE:
+                pixel = b.getPixel((int)touchX,(int)touchY);
+                _paint.setColor(pixel);
                 _path.lineTo(touchX, touchY);
                 break;
             case MotionEvent.ACTION_UP:
