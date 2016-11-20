@@ -11,14 +11,17 @@ import android.graphics.Point;
 import android.graphics.Rect;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
+import android.support.v4.view.VelocityTrackerCompat;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
+import android.view.VelocityTracker;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.Toast;
 
 import java.text.MessageFormat;
+import java.util.ArrayList;
 import java.util.Random;
 
 /**
@@ -26,15 +29,30 @@ import java.util.Random;
  */
 public class ImpressionistView extends View {
 
+    public class PaintPoint {
+        public float _x;
+        public float _y;
+        public int _radius;
+        public Paint _paint;
+    }
+
     private ImageView _imageView;
 
     private Canvas _offScreenCanvas = null;
     private Bitmap _offScreenBitmap = null;
     private Paint _paint = new Paint();
-    private Path _path = new Path();
+    private VelocityTracker _vTracker = null;
+
+    private ArrayList<PaintPoint> _listPaintPoints = new ArrayList<PaintPoint>();
+    //private Rect _bitmapBorder = getBitmapPositionInsideImageView(_imageView);
+    //private Path _path = new Path();
+
+    private float _scaleX;
+    private float _scaleY;
 
     private int _alpha = 150;
     private int _defaultRadius = 25;
+    private int _radiusOffset = 0;
     private Point _lastPoint = null;
     private long _lastPointTime = -1;
     private boolean _useMotionSpeedForBrushStrokeSize = true;
@@ -73,7 +91,7 @@ public class ImpressionistView extends View {
         _paint.setColor(Color.RED);
         _paint.setAlpha(_alpha);
         _paint.setAntiAlias(true);
-        _paint.setStyle(Paint.Style.STROKE);
+        _paint.setStyle(Paint.Style.FILL);
         _paint.setStrokeWidth(4);
 
         _paintBorder.setColor(Color.BLACK);
@@ -128,7 +146,7 @@ public class ImpressionistView extends View {
 
         // Draw the border. Helpful to see the size of the bitmap in the ImageView
         canvas.drawRect(getBitmapPositionInsideImageView(_imageView), _paintBorder);
-        canvas.drawPath(_path, _paint);
+        //canvas.drawPath(_path, _paint);
     }
 
     @Override
@@ -140,18 +158,51 @@ public class ImpressionistView extends View {
         //at that location
         float touchX = motionEvent.getX();
         float touchY = motionEvent.getY();
-        Bitmap b = ((BitmapDrawable)_imageView.getDrawable()).getBitmap();
-        int pixel = b.getPixel((int)touchX,(int)touchY);
 
+        // obtain necessary information for the velocity tracker
+        int index = motionEvent.getActionIndex();
+        int action = motionEvent.getActionMasked();
+        int pointerId = motionEvent.getPointerId(index);
+
+        BitmapDrawable d = ((BitmapDrawable)_imageView.getDrawable());
+        if(d != null) {
+            Bitmap b = d.getBitmap();
+            float[] f = new float[9];
+            _imageView.getImageMatrix().getValues(f);
+
+            _scaleX = f[Matrix.MSCALE_X];
+            _scaleY = f[Matrix.MSCALE_Y];
+            if((int)touchX > 0 && (int)touchX < b.getWidth() * _scaleX && (int)touchY > 0 &&
+                    (int)touchY < b.getHeight() * _scaleY) {
+                //System.out.println("Changing at pixels " + touchX + " and " + touchY);
+                int color = b.getPixel((int)(touchX /_scaleX), (int)(touchY / _scaleY));
+                _paint.setColor(color);
+            } else {
+                return true;
+            }
+        }
+        //Bitmap btmp = Bitmap.createBitmap(_imageView.getBitmap());
         switch(motionEvent.getAction()) {
             case MotionEvent.ACTION_DOWN:
-                _paint.setColor(pixel);
-                _path.moveTo(touchX, touchY);
+                //_paint.setColor(pixel);
+                if(_vTracker == null) {
+                    _vTracker = VelocityTracker.obtain();
+                } else {
+                    _vTracker.clear();
+                }
+                _vTracker.addMovement(motionEvent);
+                _offScreenCanvas.drawCircle(touchX, touchY, _defaultRadius, _paint);
                 break;
             case MotionEvent.ACTION_MOVE:
-                pixel = b.getPixel((int)touchX,(int)touchY);
-                _paint.setColor(pixel);
-                _path.lineTo(touchX, touchY);
+                _vTracker.addMovement(motionEvent);
+                _vTracker.computeCurrentVelocity(10, 50);
+                _radiusOffset = (int)((VelocityTrackerCompat.getXVelocity(_vTracker, pointerId) *
+                        VelocityTrackerCompat.getYVelocity(_vTracker, pointerId)) / 20);
+                //pixel = b.getPixel((int)touchX,(int)touchY);
+                //_paint.setColor(pixel);
+                //_offScreenCanvas.drawCircle(touchX, touchY, _defaultRadius + _radiusOffset, _paint);
+                //_offScreenCanvas.drawPoint(touchX, touchY, _paint);
+                _offScreenCanvas.drawCircle(touchX, touchY, _defaultRadius, _paint);
                 break;
             case MotionEvent.ACTION_UP:
                 break;
@@ -192,6 +243,8 @@ public class ImpressionistView extends View {
         final Drawable d = imageView.getDrawable();
         final int origW = d.getIntrinsicWidth();
         final int origH = d.getIntrinsicHeight();
+        System.out.println("Original sin: " + origW + ", " + origH);
+        System.out.println("Also: " + scaleX + ", " + scaleY);
 
         // Calculate the actual dimensions
         final int widthActual = Math.round(origW * scaleX);
@@ -201,6 +254,8 @@ public class ImpressionistView extends View {
         // We assume that the image is centered into ImageView
         int imgViewW = imageView.getWidth();
         int imgViewH = imageView.getHeight();
+        System.out.println("Here's the deal: " + imgViewW + ", " + imgViewH);
+        System.out.println("And this deal: " + widthActual + ", " + heightActual);
 
         int top = (int) (imgViewH - heightActual)/2;
         int left = (int) (imgViewW - widthActual)/2;
