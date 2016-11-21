@@ -44,8 +44,6 @@ public class ImpressionistView extends View {
     private VelocityTracker _vTracker = null;
 
     private ArrayList<PaintPoint> _listPaintPoints = new ArrayList<PaintPoint>();
-    //private Rect _bitmapBorder = getBitmapPositionInsideImageView(_imageView);
-    //private Path _path = new Path();
 
     private float _scaleX;
     private float _scaleY;
@@ -146,16 +144,11 @@ public class ImpressionistView extends View {
 
         // Draw the border. Helpful to see the size of the bitmap in the ImageView
         canvas.drawRect(getBitmapPositionInsideImageView(_imageView), _paintBorder);
-        //canvas.drawPath(_path, _paint);
     }
 
     @Override
     public boolean onTouchEvent(MotionEvent motionEvent){
 
-        //TODO
-        //Basically, the way this works is to liste for Touch Down and Touch Move events and determine where those
-        //touch locations correspond to the bitmap in the ImageView. You can then grab info about the bitmap--like the pixel color--
-        //at that location
         float touchX = motionEvent.getX();
         float touchY = motionEvent.getY();
 
@@ -170,38 +163,42 @@ public class ImpressionistView extends View {
             float[] f = new float[9];
             _imageView.getImageMatrix().getValues(f);
 
+            // obtain the scale factor, since each image that will be loaded into the image view on
+            // the left has different dimenions (found this out through trial and error)
             _scaleX = f[Matrix.MSCALE_X];
             _scaleY = f[Matrix.MSCALE_Y];
+            // check boundaries, multiplied by their respective scale factors so that the boundaries
+            // of both sides can be treated as effectively the same
             if((int)touchX > 0 && (int)touchX < b.getWidth() * _scaleX && (int)touchY > 0 &&
                     (int)touchY < b.getHeight() * _scaleY) {
-                //System.out.println("Changing at pixels " + touchX + " and " + touchY);
+                // pull the color from the corresponding pixel in the image view
                 int color = b.getPixel((int)(touchX /_scaleX), (int)(touchY / _scaleY));
                 _paint.setColor(color);
             } else {
                 return true;
             }
         }
-        //Bitmap btmp = Bitmap.createBitmap(_imageView.getBitmap());
         switch(motionEvent.getAction()) {
             case MotionEvent.ACTION_DOWN:
-                //_paint.setColor(pixel);
+                // initialize the velocity tracker
                 if(_vTracker == null) {
                     _vTracker = VelocityTracker.obtain();
                 } else {
                     _vTracker.clear();
                 }
                 _vTracker.addMovement(motionEvent);
+
                 _offScreenCanvas.drawCircle(touchX, touchY, _defaultRadius, _paint);
                 break;
             case MotionEvent.ACTION_MOVE:
                 _vTracker.addMovement(motionEvent);
+                // compute the current velocity, in 10 pixels per second for the units, and
+                // set 50 as the highest possible value, to ensure the shapes drawn don't blow up
                 _vTracker.computeCurrentVelocity(10, 50);
+                // we use the product of the x and y velocities to calculate a radius offset for
+                // drawing the shapes, and divide it by 20 (found to work through trial and error)
                 _radiusOffset = (int)((VelocityTrackerCompat.getXVelocity(_vTracker, pointerId) *
                         VelocityTrackerCompat.getYVelocity(_vTracker, pointerId)) / 20);
-                //pixel = b.getPixel((int)touchX,(int)touchY);
-                //_paint.setColor(pixel);
-                //_offScreenCanvas.drawCircle(touchX, touchY, _defaultRadius + _radiusOffset, _paint);
-                //_offScreenCanvas.drawPoint(touchX, touchY, _paint);
                 _offScreenCanvas.drawCircle(touchX, touchY, _defaultRadius, _paint);
                 break;
             case MotionEvent.ACTION_UP:
