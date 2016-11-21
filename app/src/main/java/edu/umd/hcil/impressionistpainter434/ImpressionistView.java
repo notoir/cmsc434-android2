@@ -4,6 +4,7 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.ColorMatrix;
 import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
@@ -146,6 +147,10 @@ public class ImpressionistView extends View {
         invalidate();
     }
 
+    public Bitmap getPainting() {
+        return this._offScreenBitmap;
+    }
+
     @Override
     public void onDraw(Canvas canvas) {
         super.onDraw(canvas);
@@ -155,6 +160,25 @@ public class ImpressionistView extends View {
         }
         // Draw the border. Helpful to see the size of the bitmap in the ImageView
         canvas.drawRect(getBitmapPositionInsideImageView(_imageView), _paintBorder);
+    }
+
+    public void drawTriangle(float x, float y) {
+        // adapted from:
+        // http://stackoverflow.com/questions/20544668/how-to-draw-filled-triangle-on-android-canvas
+        Point a = new Point((int)x, (int)y + _defaultRadius);
+        Point b = new Point((int)x + _defaultRadius, (int)y - _defaultRadius);
+        Point c = new Point((int)x - _defaultRadius, (int)y - _defaultRadius);
+        Path path = new Path();
+        path.setFillType(Path.FillType.EVEN_ODD);
+        path.moveTo(b.x, b.y);
+        path.lineTo(b.x, b.y);
+        System.out.println("A: (" + a.x + ", " + a.y + ") -- B: (" + b.x + ", " + b.y +
+                ") -- C: (" + c.x + ", " + c.y + ")");
+        path.lineTo(c.x, c.y);
+        path.lineTo(a.x, a.y);
+        path.close();
+
+        _offScreenCanvas.drawPath(path, _paint);
     }
 
     @Override
@@ -232,16 +256,19 @@ public class ImpressionistView extends View {
                     } else if(_brushType.equals(BrushType.VelocityCircle)) {
                         _offScreenCanvas.drawCircle(curTouchX, curTouchY, _defaultRadius + _radiusOffset, _paint);
                     } else {
-                        _offScreenCanvas.drawCircle(curTouchX, curTouchY, 1, _paint);
+                        this.drawTriangle(curTouchX, curTouchY);
                     }
                 }
                 if(_brushType.equals(BrushType.Square)) {
+                    // square brush
                     _offScreenCanvas.drawRect(curTouchX - _defaultRadius - _radiusOffset, curTouchY - _defaultRadius - _radiusOffset,
                             curTouchX + _defaultRadius, curTouchY + _defaultRadius, _paint);
                 } else if(_brushType.equals(BrushType.VelocityCircle)) {
+                    // circle brush
                     _offScreenCanvas.drawCircle(curTouchX, curTouchY, _defaultRadius + _radiusOffset, _paint);
                 } else {
-                    _offScreenCanvas.draw(curTouchX, curTouchY, 1, _paint);
+                    // triangle brush
+                    this.drawTriangle(curTouchX, curTouchY);
                 }
                 invalidate();
                 //_offScreenCanvas.drawCircle(curTouchX, curTouchY, _defaultRadius, _paint);
@@ -305,6 +332,34 @@ public class ImpressionistView extends View {
         rect.set(left, top, left + widthActual, top + heightActual);
 
         return rect;
+    }
+
+    public void convertToBW() {
+
+        // algorithm from:
+        // http://www.johndcook.com/blog/2009/08/24/algorithms-convert-color-grayscale/
+        int[] pixels = new int[_offScreenBitmap.getWidth()*_offScreenBitmap.getHeight()];
+        _offScreenBitmap.getPixels(pixels, 0, _offScreenBitmap.getWidth(), 0, 0,
+                _offScreenBitmap.getWidth(), _offScreenBitmap.getHeight());
+
+        for(int i = 0; i < pixels.length; i++) {
+            int pixel = pixels[i];
+
+            int red = Color.red(pixel);
+            int blue = Color.blue(pixel);
+            int green = Color.green(pixel);
+
+            //System.out.println("changing (" + red + ", " + green + ", " + blue + ") to: " + (red + blue + green) / 3);
+
+            int mean = (red + blue + green) / 3;
+            pixels[i] = Color.rgb(mean, mean, mean);
+        }
+
+        _offScreenBitmap.setPixels(pixels, 0, _offScreenBitmap.getWidth(), 0, 0,
+                _offScreenBitmap.getWidth(), _offScreenBitmap.getHeight());
+
+
+        invalidate();
     }
 }
 

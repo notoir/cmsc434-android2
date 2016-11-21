@@ -95,7 +95,7 @@ public class MainActivity extends AppCompatActivity implements OnMenuItemClickLi
                 Toast.makeText(this, "Square Brush", Toast.LENGTH_SHORT).show();
                 _impressionistView.setBrushType(BrushType.Square);
                 return true;
-            case R.id.menuLine:
+            case R.id.menuTriangle:
                 Toast.makeText(this, "Triangle Brush", Toast.LENGTH_SHORT).show();
                 _impressionistView.setBrushType(BrushType.Triangle);
                 return true;
@@ -153,6 +153,23 @@ public class MainActivity extends AppCompatActivity implements OnMenuItemClickLi
         }
     }
 
+    public void onButtonClickSaveImage(View v) {
+        FileUtils.verifyStoragePermissions(this);
+        Bitmap painting = _impressionistView.getPainting();
+        File fileDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
+        File[] images = fileDir.listFiles();
+
+        File file = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "image" + images.length);
+        try {
+            boolean compressSucceeded = painting.compress(Bitmap.CompressFormat.PNG, 100, new FileOutputStream(file));
+            FileUtils.addImageToGallery(file.getAbsolutePath(), getApplicationContext());
+            Toast.makeText(getApplicationContext(), "Saved to " + file.getAbsolutePath(), Toast.LENGTH_SHORT).show();
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+
+    }
+
     /**
      * Loads an image from the Gallery into the ImageView
      *
@@ -170,6 +187,9 @@ public class MainActivity extends AppCompatActivity implements OnMenuItemClickLi
         startActivityForResult(i, RESULT_LOAD_IMAGE);
     }
 
+    public void onButtonClickBW(View v) {
+       _impressionistView.convertToBW();
+    }
     /**
      * Called automatically when an image has been selected in the Gallery
      *
