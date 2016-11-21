@@ -172,8 +172,6 @@ public class ImpressionistView extends View {
         path.setFillType(Path.FillType.EVEN_ODD);
         path.moveTo(b.x, b.y);
         path.lineTo(b.x, b.y);
-        System.out.println("A: (" + a.x + ", " + a.y + ") -- B: (" + b.x + ", " + b.y +
-                ") -- C: (" + c.x + ", " + c.y + ")");
         path.lineTo(c.x, c.y);
         path.lineTo(a.x, a.y);
         path.close();
@@ -271,7 +269,6 @@ public class ImpressionistView extends View {
                     this.drawTriangle(curTouchX, curTouchY);
                 }
                 invalidate();
-                //_offScreenCanvas.drawCircle(curTouchX, curTouchY, _defaultRadius, _paint);
                 break;
             case MotionEvent.ACTION_UP:
                 break;
@@ -349,7 +346,6 @@ public class ImpressionistView extends View {
             int blue = Color.blue(pixel);
             int green = Color.green(pixel);
 
-            //System.out.println("changing (" + red + ", " + green + ", " + blue + ") to: " + (red + blue + green) / 3);
 
             int mean = (red + blue + green) / 3;
             pixels[i] = Color.rgb(mean, mean, mean);
