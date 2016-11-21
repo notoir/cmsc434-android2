@@ -87,25 +87,17 @@ public class MainActivity extends AppCompatActivity implements OnMenuItemClickLi
 
     public boolean onMenuItemClick(MenuItem item) {
         switch (item.getItemId()) {
-            case R.id.menuCircle:
-                Toast.makeText(this, "Circle Brush", Toast.LENGTH_SHORT).show();
-                _impressionistView.setBrushType(BrushType.Circle);
+            case R.id.menuVelocityCircle:
+                Toast.makeText(this, "Velocity Circle Brush", Toast.LENGTH_SHORT).show();
+                _impressionistView.setBrushType(BrushType.VelocityCircle);
                 return true;
             case R.id.menuSquare:
                 Toast.makeText(this, "Square Brush", Toast.LENGTH_SHORT).show();
                 _impressionistView.setBrushType(BrushType.Square);
                 return true;
             case R.id.menuLine:
-                Toast.makeText(this, "Line Brush", Toast.LENGTH_SHORT).show();
-                _impressionistView.setBrushType(BrushType.Line);
-                return true;
-            case R.id.menuCircleSplatter:
-                Toast.makeText(this, "Circle Splatter Brush", Toast.LENGTH_SHORT).show();
-                _impressionistView.setBrushType(BrushType.CircleSplatter);
-                return true;
-            case R.id.menuLineSplatter:
-                Toast.makeText(this, "Line Splatter Brush", Toast.LENGTH_SHORT).show();
-                _impressionistView.setBrushType(BrushType.LineSplatter);
+                Toast.makeText(this, "Triangle Brush", Toast.LENGTH_SHORT).show();
+                _impressionistView.setBrushType(BrushType.Triangle);
                 return true;
         }
         return false;

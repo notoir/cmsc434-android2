@@ -29,12 +29,19 @@ import java.util.Random;
  */
 public class ImpressionistView extends View {
 
-    public class PaintPoint {
+    /*public class PaintPoint {
         public float _x;
         public float _y;
-        public int _radius;
-        public Paint _paint;
-    }
+        public float _radius;
+        public Paint _paint = new Paint();
+
+        public PaintPoint(float x, float y, int radius, Paint p) {
+            _x = x;
+            _y = y;
+            _radius = radius;
+            _paint.set(p);
+        }
+    }*/
 
     private ImageView _imageView;
 
@@ -43,7 +50,7 @@ public class ImpressionistView extends View {
     private Paint _paint = new Paint();
     private VelocityTracker _vTracker = null;
 
-    private ArrayList<PaintPoint> _listPaintPoints = new ArrayList<PaintPoint>();
+    //private ArrayList<PaintPoint> _listPaintPoints = new ArrayList<PaintPoint>();
 
     private float _scaleX;
     private float _scaleY;
@@ -51,9 +58,6 @@ public class ImpressionistView extends View {
     private int _alpha = 150;
     private int _defaultRadius = 25;
     private int _radiusOffset = 0;
-    private Point _lastPoint = null;
-    private long _lastPointTime = -1;
-    private boolean _useMotionSpeedForBrushStrokeSize = true;
     private Paint _paintBorder = new Paint();
     private BrushType _brushType = BrushType.Square;
     private float _minBrushRadius = 5;
@@ -131,7 +135,15 @@ public class ImpressionistView extends View {
      * Clears the painting
      */
     public void clearPainting(){
-        //TODO
+        //_listPaintPoints.clear();
+
+        if(_offScreenCanvas != null) {
+            Paint paint = new Paint();
+            paint.setColor(Color.WHITE);
+            paint.setStyle(Paint.Style.FILL);
+            _offScreenCanvas.drawRect(0, 0, this.getWidth(), this.getHeight(), paint);
+        }
+        invalidate();
     }
 
     @Override
@@ -141,7 +153,6 @@ public class ImpressionistView extends View {
         if(_offScreenBitmap != null) {
             canvas.drawBitmap(_offScreenBitmap, 0, 0, _paint);
         }
-
         // Draw the border. Helpful to see the size of the bitmap in the ImageView
         canvas.drawRect(getBitmapPositionInsideImageView(_imageView), _paintBorder);
     }
@@ -149,8 +160,8 @@ public class ImpressionistView extends View {
     @Override
     public boolean onTouchEvent(MotionEvent motionEvent){
 
-        float touchX = motionEvent.getX();
-        float touchY = motionEvent.getY();
+        float curTouchX = motionEvent.getX();
+        float curTouchY = motionEvent.getY();
 
         // obtain necessary information for the velocity tracker
         int index = motionEvent.getActionIndex();
@@ -164,15 +175,24 @@ public class ImpressionistView extends View {
             _imageView.getImageMatrix().getValues(f);
 
             // obtain the scale factor, since each image that will be loaded into the image view on
-            // the left has different dimenions (found this out through trial and error)
+            // the left has different dimensions (found this out through trial and error)
             _scaleX = f[Matrix.MSCALE_X];
             _scaleY = f[Matrix.MSCALE_Y];
+
+            final int origW = b.getWidth();
+            final int origH = b.getHeight();
+            final int widthActual = Math.round(origW * _scaleX);
+            final int heightActual = Math.round(origH * _scaleY);
+            int top = (_imageView.getHeight() - heightActual)/2;
+            int left = (_imageView.getWidth() - widthActual)/2;
+
             // check boundaries, multiplied by their respective scale factors so that the boundaries
             // of both sides can be treated as effectively the same
-            if((int)touchX > 0 && (int)touchX < b.getWidth() * _scaleX && (int)touchY > 0 &&
-                    (int)touchY < b.getHeight() * _scaleY) {
+            if((int)curTouchX > left && (int)curTouchX < left + widthActual && (int)curTouchY > top &&
+                    (int)curTouchY < top + heightActual) {
                 // pull the color from the corresponding pixel in the image view
-                int color = b.getPixel((int)(touchX /_scaleX), (int)(touchY / _scaleY));
+                int color = b.getPixel((int)((curTouchX - left)/_scaleX),
+                        (int)((curTouchY - top )/ _scaleY));
                 _paint.setColor(color);
             } else {
                 return true;
@@ -188,9 +208,11 @@ public class ImpressionistView extends View {
                 }
                 _vTracker.addMovement(motionEvent);
 
-                _offScreenCanvas.drawCircle(touchX, touchY, _defaultRadius, _paint);
+                //_offScreenCanvas.drawCircle(curTouchX, curTouchY, _defaultRadius, _paint);
                 break;
             case MotionEvent.ACTION_MOVE:
+                int historySize = motionEvent.getHistorySize();
+
                 _vTracker.addMovement(motionEvent);
                 // compute the current velocity, in 10 pixels per second for the units, and
                 // set 50 as the highest possible value, to ensure the shapes drawn don't blow up
@@ -199,7 +221,30 @@ public class ImpressionistView extends View {
                 // drawing the shapes, and divide it by 20 (found to work through trial and error)
                 _radiusOffset = (int)((VelocityTrackerCompat.getXVelocity(_vTracker, pointerId) *
                         VelocityTrackerCompat.getYVelocity(_vTracker, pointerId)) / 20);
-                _offScreenCanvas.drawCircle(touchX, touchY, _defaultRadius, _paint);
+
+                for(int i = 0; i < historySize; i++) {
+                    float touchX = motionEvent.getHistoricalX(i);
+                    float touchY = motionEvent.getHistoricalY(i);
+
+                    if(_brushType.equals(BrushType.Square)) {
+                        _offScreenCanvas.drawRect(touchX - _defaultRadius, touchY - _defaultRadius,
+                                touchX + _defaultRadius, touchY + _defaultRadius, _paint);
+                    } else if(_brushType.equals(BrushType.VelocityCircle)) {
+                        _offScreenCanvas.drawCircle(curTouchX, curTouchY, _defaultRadius + _radiusOffset, _paint);
+                    } else {
+                        _offScreenCanvas.drawCircle(curTouchX, curTouchY, 1, _paint);
+                    }
+                }
+                if(_brushType.equals(BrushType.Square)) {
+                    _offScreenCanvas.drawRect(curTouchX - _defaultRadius - _radiusOffset, curTouchY - _defaultRadius - _radiusOffset,
+                            curTouchX + _defaultRadius, curTouchY + _defaultRadius, _paint);
+                } else if(_brushType.equals(BrushType.VelocityCircle)) {
+                    _offScreenCanvas.drawCircle(curTouchX, curTouchY, _defaultRadius + _radiusOffset, _paint);
+                } else {
+                    _offScreenCanvas.draw(curTouchX, curTouchY, 1, _paint);
+                }
+                invalidate();
+                //_offScreenCanvas.drawCircle(curTouchX, curTouchY, _defaultRadius, _paint);
                 break;
             case MotionEvent.ACTION_UP:
                 break;
@@ -240,8 +285,8 @@ public class ImpressionistView extends View {
         final Drawable d = imageView.getDrawable();
         final int origW = d.getIntrinsicWidth();
         final int origH = d.getIntrinsicHeight();
-        System.out.println("Original sin: " + origW + ", " + origH);
-        System.out.println("Also: " + scaleX + ", " + scaleY);
+        //System.out.println("Original sin: " + origW + ", " + origH);
+        //System.out.println("Also: " + scaleX + ", " + scaleY);
 
         // Calculate the actual dimensions
         final int widthActual = Math.round(origW * scaleX);
@@ -251,8 +296,8 @@ public class ImpressionistView extends View {
         // We assume that the image is centered into ImageView
         int imgViewW = imageView.getWidth();
         int imgViewH = imageView.getHeight();
-        System.out.println("Here's the deal: " + imgViewW + ", " + imgViewH);
-        System.out.println("And this deal: " + widthActual + ", " + heightActual);
+        //System.out.println("Here's the deal: " + imgViewW + ", " + imgViewH);
+        //System.out.println("And this deal: " + widthActual + ", " + heightActual);
 
         int top = (int) (imgViewH - heightActual)/2;
         int left = (int) (imgViewW - widthActual)/2;
